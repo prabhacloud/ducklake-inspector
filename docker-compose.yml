@@ -1,0 +1,21 @@
+# Convenience runner. Point DUCKLAKE_HOST_DIR at the directory containing
+# your lake_meta.db (and its data/ subdir).
+#
+#   DUCKLAKE_HOST_DIR=/tmp/ducklake-probe docker compose up
+#
+# Then open http://localhost:3000
+
+services:
+  ducklake-inspector:
+    build: .
+    image: ducklake-inspector:latest
+    ports:
+      - "3000:3000"
+    environment:
+      DUCKLAKE_METADATA_PATH: /data/lake_meta.db
+      # Uncomment to enable the AI executive summary on /audit:
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # LLM_PROVIDER: anthropic
+    volumes:
+      - ${DUCKLAKE_HOST_DIR:-/tmp/ducklake-probe}:/data:ro
