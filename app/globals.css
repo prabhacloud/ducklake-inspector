@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { height: 100%; }
+body {
+  background: #FDF9EE;
+  color: #1F1D18;
+}
+
+/* Subtle warm scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #E8DFC7;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D6CBB2;
+  background-clip: padding-box;
+}
+
+/* Duck-yellow highlight for selected text */
+::selection { background: #FFF000; color: #1F1D18; }
