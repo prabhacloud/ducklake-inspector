@@ -1,10 +1,20 @@
 import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api';
 import { dirname, resolve } from 'node:path';
 
-const META_PATH = process.env.DUCKLAKE_METADATA_PATH;
-if (!META_PATH) throw new Error('DUCKLAKE_METADATA_PATH not set');
-const META_ABS = resolve(META_PATH);
-const META_DIR = dirname(META_ABS);
+// Resolved lazily — throwing at module load breaks `next build` because Next
+// imports every module during page-data collection, even for `force-dynamic`
+// routes. Read the env at request time so the build succeeds without the var.
+interface MetaPaths { abs: string; dir: string; attachSql: string }
+function metaPaths(): MetaPaths {
+  const p = process.env.DUCKLAKE_METADATA_PATH;
+  if (!p) throw new Error('DUCKLAKE_METADATA_PATH not set');
+  const abs = resolve(p);
+  return {
+    abs,
+    dir: dirname(abs),
+    attachSql: `ATTACH 'ducklake:${abs.replace(/'/g, "''")}' AS lake`,
+  };
+}
 
 declare global {
   // eslint-disable-next-line no-var
@@ -13,22 +23,21 @@ declare global {
   var __dlConn: DuckDBConnection | undefined;
 }
 
-const ATTACH_SQL = `ATTACH 'ducklake:${META_ABS.replace(/'/g, "''")}' AS lake`;
-
 async function bootstrap(): Promise<DuckDBConnection> {
+  const { dir, attachSql } = metaPaths();
   // The catalog may store data_path as relative — DuckLake resolves it against
   // the process CWD, so we briefly chdir to the metadata dir, then restore.
   // Restoring is critical: Tailwind's postcss plugin resolves the `content`
   // globs against CWD lazily on each request; leaving CWD at /tmp yields zero
   // matched files and blank utility CSS.
   const originalCwd = process.cwd();
-  try { process.chdir(META_DIR); } catch { /* already in correct dir */ }
+  try { process.chdir(dir); } catch { /* already in correct dir */ }
   try {
     const inst = await DuckDBInstance.create(':memory:');
     const conn = await inst.connect();
     await conn.run(`INSTALL ducklake`);
     await conn.run(`LOAD ducklake`);
-    await conn.run(ATTACH_SQL);
+    await conn.run(attachSql);
     globalThis.__dlInstance = inst;
     globalThis.__dlConn = conn;
     return conn;
@@ -41,11 +50,12 @@ async function bootstrap(): Promise<DuckDBConnection> {
 // processes become visible. Cheap for local catalogs (low double-digit ms).
 export async function refreshCatalog(): Promise<void> {
   const conn = await getConn();
+  const { dir, attachSql } = metaPaths();
   const originalCwd = process.cwd();
-  try { process.chdir(META_DIR); } catch { /* already in correct dir */ }
+  try { process.chdir(dir); } catch { /* already in correct dir */ }
   try {
     await conn.run(`DETACH lake`);
-    await conn.run(ATTACH_SQL);
+    await conn.run(attachSql);
   } finally {
     try { process.chdir(originalCwd); } catch { /* best-effort */ }
   }

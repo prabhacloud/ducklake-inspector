@@ -31,7 +31,7 @@ ENV HOSTNAME=0.0.0.0
 # it needs under .next/standalone/.
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public 2>/dev/null || true
+# No public/ dir in this project — skip the COPY that would break the build.
 
 EXPOSE 3000
 
